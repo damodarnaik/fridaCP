@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frida Childs Play – Automated Frida Management</title>
+    <meta name="description" content="Automated Frida management tool for Android pentesting">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span class="brand-icon">🔥</span>
+            <span class="brand-text">Frida<span class="accent">CP</span></span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button class="nav-btn active" data-tab="dashboard" id="nav-dashboard">
+                <span class="nav-icon">⚡</span>
+                <span class="nav-label">Dashboard</span>
+            </button>
+            <button class="nav-btn" data-tab="applications" id="nav-applications">
+                <span class="nav-icon">📱</span>
+                <span class="nav-label">Applications</span>
+            </button>
+            <button class="nav-btn" data-tab="files" id="nav-files">
+                <span class="nav-icon">📂</span>
+                <span class="nav-label">Files</span>
+            </button>
+            <button class="nav-btn" data-tab="scripting" id="nav-scripting">
+                <span class="nav-icon">💉</span>
+                <span class="nav-label">Scripting</span>
+            </button>
+            <button class="nav-btn" data-tab="inspector" id="nav-inspector">
+                <span class="nav-icon">🔍</span>
+                <span class="nav-label">Inspector</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="device-status" id="device-status-indicator">
+                <span class="status-dot offline"></span>
+                <span class="status-text">No Device</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- ─── Dashboard Tab ──────────────────────────────── -->
+        <section class="tab-panel active" id="tab-dashboard">
+            <div class="tab-header">
+                <h1>Dashboard</h1>
+                <p class="subtitle">Connect your rooted device and let the magic happen</p>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Device Card -->
+                <div class="card device-card">
+                    <div class="card-header">
+                        <h2>📡 Device</h2>
+                        <button class="btn btn-sm btn-ghost" onclick="refreshDevices()">↻ Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <select class="select-device" id="device-select" onchange="onDeviceSelected()">
+                            <option value="">-- Select Device --</option>
+                        </select>
+                        <div class="device-info" id="device-info" style="display:none;">
+                            <div class="info-row"><span class="info-label">Model</span><span class="info-value" id="info-model">-</span></div>
+                            <div class="info-row"><span class="info-label">Android</span><span class="info-value" id="info-android">-</span></div>
+                            <div class="info-row"><span class="info-label">Architecture</span><span class="info-value" id="info-arch">-</span></div>
+                            <div class="info-row"><span class="info-label">Type</span><span class="info-value" id="info-type">-</span></div>
+                            <div class="info-row"><span class="info-label">Root</span><span class="info-value" id="info-root">-</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Frida Card -->
+                <div class="card frida-card">
+                    <div class="card-header">
+                        <h2>🔧 Frida Setup</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="frida-status-grid">
+                            <div class="frida-status-item">
+                                <span class="status-label">Host Frida</span>
+                                <span class="status-badge" id="frida-host-status">Unknown</span>
+                            </div>
+                            <div class="frida-status-item">
+                                <span class="status-label">Device Server</span>
+                                <span class="status-badge" id="frida-device-status">Unknown</span>
+                            </div>
+                            <div class="frida-status-item">
+                                <span class="status-label">Server Running</span>
+                                <span class="status-badge" id="frida-server-running">Unknown</span>
+                            </div>
+                        </div>
+                        <div class="frida-progress" id="frida-progress" style="display:none;">
+                            <div class="progress-bar"><div class="progress-fill" id="frida-progress-bar"></div></div>
+                            <span class="progress-text" id="frida-progress-text">Initializing...</span>
+                        </div>
+                        <!-- Sudo prompt (hidden by default) -->
+                        <div class="sudo-prompt" id="sudo-prompt" style="display:none;">
+                            <p class="sudo-msg">⚠️ Sudo password required for pip install:</p>
+                            <input type="password" id="sudo-password" class="input-field" placeholder="Enter sudo password">
+                            <button class="btn btn-primary" onclick="setupFridaWithSudo()">Submit</button>
+                        </div>
+                        <button class="btn btn-primary btn-lg" id="setup-frida-btn" onclick="setupFrida()" disabled>
+                            ⚡ Auto Setup Frida
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Card -->
+            <div class="card log-card">
+                <div class="card-header">
+                    <h2>📋 Log</h2>
+                    <button class="btn btn-sm btn-ghost" onclick="clearLogs()">Clear</button>
+                </div>
+                <div class="card-body">
+                    <div class="log-output" id="log-output"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Applications Tab ───────────────────────────── -->
+        <section class="tab-panel" id="tab-applications">
+            <div class="tab-header">
+                <h1>Applications</h1>
+                <div class="tab-header-actions">
+                    <input type="text" class="search-input" id="app-search" placeholder="Search apps..." oninput="filterApps()">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="show-system-apps" onchange="loadApps()">
+                        <span>Show System Apps</span>
+                    </label>
+                    <button class="btn btn-sm btn-primary" onclick="loadApps()">↻ Refresh</button>
+                </div>
+            </div>
+
+            <div class="apps-table-container">
+                <table class="apps-table" id="apps-table">
+                    <thead>
+                        <tr>
+                            <th class="th-pid">PID</th>
+                            <th class="th-name">Name</th>
+                            <th class="th-identifier">Identifier</th>
+                            <th class="th-actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="apps-tbody">
+                        <tr><td colspan="4" class="empty-state">Select a device and click Refresh</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ─── Files Tab ──────────────────────────────────── -->
+        <section class="tab-panel" id="tab-files">
+            <div class="tab-header">
+                <h1>File Browser</h1>
+            </div>
+
+            <div class="files-toolbar">
+                <span class="file-path" id="file-current-path">/data/data/...</span>
+                <button class="btn btn-sm btn-ghost" onclick="fileGoUp()">⬆ Parent</button>
+                <button class="btn btn-sm btn-ghost" onclick="refreshFiles()">↻ Refresh</button>
+            </div>
+
+            <div class="files-layout">
+                <div class="file-tree-panel">
+                    <table class="file-table" id="file-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Perms</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="file-tbody">
+                            <tr><td colspan="5" class="empty-state">Select an app first</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="file-viewer-panel">
+                    <div class="viewer-header">
+                        <span id="viewer-filename">File Viewer</span>
+                    </div>
+                    <pre class="file-content" id="file-content">Select a file to view its contents</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Scripting Tab ──────────────────────────────── -->
+        <section class="tab-panel" id="tab-scripting">
+            <div class="tab-header">
+                <h1>Frida Scripting</h1>
+            </div>
+
+            <div class="scripting-toolbar">
+                <div class="script-target-info">
+                    <span class="target-label">Target:</span>
+                    <span class="target-value" id="script-target">None selected</span>
+                    <span class="target-label">PID:</span>
+                    <span class="target-value" id="script-pid">-</span>
+                </div>
+                <div class="script-actions">
+                    <button class="btn btn-spawn" onclick="scriptSpawn()" id="btn-spawn">🚀 Spawn</button>
+                    <button class="btn btn-attach" onclick="scriptAttach()" id="btn-attach">🔗 Attach (PID)</button>
+                    <button class="btn btn-danger" onclick="scriptDetach()" id="btn-detach" disabled>⛔ Detach</button>
+                </div>
+            </div>
+
+            <div class="scripting-layout">
+                <div class="script-editor-panel">
+                    <div class="editor-header">Script Editor</div>
+                    <textarea class="code-editor" id="script-editor" spellcheck="false">// Frida Script Template
+Java.perform(function() {
+    console.log("[*] Script loaded successfully");
+
+    // Example: Hook a method
+    // var MainActivity = Java.use("com.example.MainActivity");
+    // MainActivity.onCreate.implementation = function() {
+    //     console.log("[*] onCreate called");
+    //     this.onCreate.apply(this, arguments);
+    // };
+});</textarea>
+                </div>
+                <div class="script-output-panel">
+                    <div class="editor-header">
+                        <span>Script Output</span>
+                        <button class="btn btn-sm btn-ghost" onclick="clearScriptOutput()">Clear</button>
+                    </div>
+                    <div class="script-output" id="script-output"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Inspector Tab ──────────────────────────────── -->
+        <section class="tab-panel" id="tab-inspector">
+            <div class="tab-header">
+                <h1>Runtime Inspector</h1>
+                <div class="tab-header-actions">
+                    <input type="text" class="search-input" id="class-filter" placeholder="Filter classes (e.g. com.example)">
+                    <button class="btn btn-sm btn-primary" onclick="enumerateClasses()" id="btn-enum-classes">🔍 Enumerate Classes</button>
+                </div>
+            </div>
+
+            <div class="inspector-layout">
+                <div class="classes-panel">
+                    <div class="panel-header">
+                        <span>Loaded Classes</span>
+                        <span class="badge" id="class-count">0</span>
+                    </div>
+                    <div class="class-list" id="class-list">
+                        <div class="empty-state">Click 'Enumerate Classes' to load</div>
+                    </div>
+                </div>
+
+                <div class="methods-panel">
+                    <div class="panel-header">
+                        <span>Methods</span>
+                        <span class="badge" id="method-count">0</span>
+                    </div>
+                    <div class="method-list" id="method-list">
+                        <div class="empty-state">Select a class to view methods</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Hook Script Modal -->
+    <div class="modal-overlay" id="hook-modal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🪝 Hookable Frida Script</h3>
+                <button class="modal-close" onclick="closeHookModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <pre class="hook-script-code" id="hook-script-code"></pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="copyHookScript()">📋 Copy to Clipboard</button>
+                <button class="btn btn-spawn" onclick="useHookScript()">📝 Use in Script Editor</button>
+                <button class="btn btn-ghost" onclick="closeHookModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
