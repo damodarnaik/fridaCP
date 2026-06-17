@@ -17,12 +17,12 @@ from modules.class_inspector import ClassInspector
 from utils.logger import logger
 import config
 
-# ── Flask App ───────────────────────────────────────────────────────────
+# Flask App Setup
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24).hex()
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
-# ── Initialize Managers ─────────────────────────────────────────────────
+# Initialize Managers
 device_manager = DeviceManager()
 frida_manager = FridaManager(device_manager)
 app_manager = AppManager(device_manager)
@@ -38,14 +38,14 @@ frida_manager.set_socketio(socketio)
 script_manager.set_socketio(socketio)
 runtime_monitor.set_socketio(socketio)
 
-# ── Routes ──────────────────────────────────────────────────────────────
+# Routes
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
-# ── Device API ──────────────────────────────────────────────────────────
+# Device API
 
 @app.route('/api/devices')
 def get_devices():
@@ -61,7 +61,7 @@ def get_device_info(device_id):
     return jsonify(info)
 
 
-# ── Frida Setup API ────────────────────────────────────────────────────
+# Frida Setup API
 
 @app.route('/api/frida/status/<device_id>')
 def frida_status(device_id):
@@ -87,7 +87,7 @@ def frida_setup(device_id):
     return jsonify({"success": success, "message": message})
 
 
-# ── Application API ────────────────────────────────────────────────────
+# Application API
 
 @app.route('/api/apps/<device_id>')
 def list_apps(device_id):
@@ -116,7 +116,7 @@ def kill_app(device_id, package_name):
     return jsonify({"success": success})
 
 
-# ── File Manager API ───────────────────────────────────────────────────
+# File Manager API
 
 @app.route('/api/files/<device_id>/<package_name>')
 def list_files(device_id, package_name):
@@ -154,7 +154,7 @@ def download_file(device_id, package_name):
         return jsonify({"error": result}), 500
 
 
-# ── Script Manager API ─────────────────────────────────────────────────
+# Script Manager API
 
 @app.route('/api/script/spawn', methods=['POST'])
 def script_spawn():
@@ -193,7 +193,7 @@ def script_detach():
     return jsonify({"success": success})
 
 
-# ── Class Inspector API ────────────────────────────────────────────────
+# Class Inspector API
 
 @app.route('/api/classes/<device_id>/<package_name>')
 def enumerate_classes(device_id, package_name):
@@ -234,14 +234,14 @@ def generate_hook():
     return jsonify({"script": script})
 
 
-# ── Logs API ───────────────────────────────────────────────────────────
+# Logs API
 
 @app.route('/api/logs')
 def get_logs():
     return jsonify({"logs": logger.get_logs()})
 
 
-# ── SocketIO Events ────────────────────────────────────────────────────
+# SocketIO Events
 
 @socketio.on('connect')
 def handle_connect():
@@ -255,7 +255,7 @@ def handle_disconnect():
     pass
 
 
-# ── Main ────────────────────────────────────────────────────────────────
+# Main Entry Point
 
 if __name__ == '__main__':
     print("""
